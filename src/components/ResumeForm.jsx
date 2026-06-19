@@ -43,6 +43,9 @@ function ResumeForm() {
     doc.setFillColor(33, 150, 243);
 doc.rect(0, 0, 210, 40, "F");
 
+if (photo) {
+  doc.addImage(photo, "JPEG", 150, 10, 40, 40);
+}
 doc.setTextColor(255, 255, 255);
 doc.setFontSize(24);
 doc.text(name || "Your Name", 20, 20);
@@ -69,7 +72,8 @@ doc.setTextColor(0, 0, 0);
     doc.setFontSize(16);
     doc.text("Skills", 20, 85);
 
-
+const summaryLines = doc.splitTextToSize(summary, 170);
+doc.text(summaryLines, 20, 60);
     
     const skillsList = skills
       .split(",")

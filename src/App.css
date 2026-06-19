@@ -131,3 +131,32 @@ li {
   background: #2196f3;
   border-radius: 20px;
 }
+.dark {
+  background: #121212;
+  color: white;
+}
+
+.dark input,
+.dark textarea,
+.dark select {
+  background: #1e1e1e;
+  color: white;
+  border: 1px solid #444;
+}
+
+.dark .preview {
+  background: #1a1a1a;
+  color: white;
+}
+
+.preview.modern {
+  border-left: 5px solid #2196f3;
+}
+
+.preview.professional {
+  border-left: 5px solid #4caf50;
+}
+
+.preview.minimal {
+  border-left: 5px solid #999;
+}
