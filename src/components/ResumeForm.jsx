@@ -1,5 +1,14 @@
 import { useState, useEffect } from "react";
 import jsPDF from "jspdf";
+import {
+  Document,
+  Packer,
+  Paragraph,
+  HeadingLevel
+} from "docx";
+import { saveAs } from "file-saver";
+import { useRef } from "react";
+import html2canvas from "html2canvas";
 
 function ResumeForm() {
   const [name, setName] = useState(localStorage.getItem("name") || "");
@@ -11,7 +20,21 @@ function ResumeForm() {
   const [photo, setPhoto] = useState(localStorage.getItem("photo") || null);
   const [template, setTemplate] = useState("modern");
   const [darkMode, setDarkMode] = useState(false);
+  const [phone, setPhone] = useState(localStorage.getItem("phone") || "");
+  const resumeRef = useRef();
 
+const calculateATS = () => {
+  let score = 0;
+
+  if (name) score += 20;
+  if (email) score += 20;
+  if (phone) score += 15;
+  if (skills) score += 15;
+  if (education) score += 15;
+  if (experience) score += 15;
+
+  return score;
+};
 
   useEffect(() => {
     localStorage.setItem("name", name);
@@ -20,7 +43,9 @@ function ResumeForm() {
     localStorage.setItem("education", education);
     localStorage.setItem("experience", experience);
     localStorage.setItem("summary", summary);
-  }, [name, email, skills, education, experience, summary]);
+    localStorage.setItem("phone", phone);
+  }, [name, email, skills, education, experience, summary,phone]);
+  
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -35,74 +60,95 @@ function ResumeForm() {
     setExperience("");
     setSummary("");
     setPhoto(null);
+    setPhone("");
     localStorage.clear();
   };
 
-  const downloadPDF = () => {
-    const doc = new jsPDF();
-    doc.setFillColor(33, 150, 243);
-doc.rect(0, 0, 210, 40, "F");
+  const downloadPDF = async () => {
+  const canvas = await html2canvas(resumeRef.current, {
+    scale: 2,
+  });
 
-if (photo) {
-  doc.addImage(photo, "JPEG", 150, 10, 40, 40);
-}
-doc.setTextColor(255, 255, 255);
-doc.setFontSize(24);
-doc.text(name || "Your Name", 20, 20);
+  const imgData = canvas.toDataURL("image/png");
 
-doc.setFontSize(12);
-doc.text(email || "your@email.com", 20, 30);
+  const pdf = new jsPDF("p", "mm", "a4");
 
-doc.setTextColor(0, 0, 0);
+  const pdfWidth = 210;
+  const pdfHeight =
+    (canvas.height * pdfWidth) / canvas.width;
 
-    doc.setFontSize(24);
-    doc.text(name || "Your Name", 20, 20);
+  pdf.addImage(
+    imgData,
+    "PNG",
+    0,
+    0,
+    pdfWidth,
+    pdfHeight
+  );
 
-    doc.setFontSize(12);
-    doc.text(email || "your@email.com", 20, 30);
+  pdf.save("Resume.pdf");
+};
+const downloadDOCX = async () => {
+  const skillsArray = skills
+    .split(",")
+    .filter(skill => skill.trim() !== "");
 
-    doc.line(20, 35, 190, 35);
+  const doc = new Document({
+    sections: [
+      {
+        children: [
+          new Paragraph({
+            text: name,
+            heading: HeadingLevel.TITLE,
+          }),
 
-    doc.setFontSize(16);
-    doc.text("Professional Summary", 20, 50);
+          new Paragraph(email),
+          new Paragraph(phone),
 
-    doc.setFontSize(12);
-    doc.text(summary || "-", 20, 60);
+          new Paragraph({
+            text: "Professional Summary",
+            heading: HeadingLevel.HEADING_1,
+          }),
 
-    doc.setFontSize(16);
-    doc.text("Skills", 20, 85);
+          new Paragraph(summary),
 
-const summaryLines = doc.splitTextToSize(summary, 170);
-doc.text(summaryLines, 20, 60);
-    
-    const skillsList = skills
-      .split(",")
-      .filter((skill) => skill.trim() !== "");
+          new Paragraph({
+            text: "Skills",
+            heading: HeadingLevel.HEADING_1,
+          }),
 
-    skillsList.forEach((skill, index) => {
-      doc.text(`• ${skill.trim()}`, 25, 95 + index * 8);
-    });
+          ...skillsArray.map(
+            skill =>
+              new Paragraph({
+                text: skill.trim(),
+                bullet: { level: 0 },
+              })
+          ),
 
-    const skillsEndY = 95 + skillsList.length * 8;
+          new Paragraph({
+            text: "Education",
+            heading: HeadingLevel.HEADING_1,
+          }),
 
-    doc.setFontSize(16);
-    doc.text("Education", 20, skillsEndY + 15);
+          new Paragraph(education),
 
-    doc.setFontSize(12);
-    doc.text(education || "-", 20, skillsEndY + 25);
+          new Paragraph({
+            text: "Experience",
+            heading: HeadingLevel.HEADING_1,
+          }),
 
-    doc.setFontSize(16);
-    doc.text("Experience", 20, skillsEndY + 45);
+          new Paragraph(experience),
+        ],
+      },
+    ],
+  });
 
-    doc.setFontSize(12);
-    doc.text(experience || "-", 20, skillsEndY + 55);
-
-    doc.save("Resume.pdf");
-  };
-
+  const blob = await Packer.toBlob(doc);
+  saveAs(blob, "Resume.docx");
+};
 
   return (
-    <div className="container">
+   <div className={darkMode ? "container dark" : "container"}>
       <h2>Resume Builder</h2>
 
       <form onSubmit={handleSubmit}>
@@ -136,8 +182,7 @@ doc.text(summaryLines, 20, 60);
             placeholder="Enter your name"
           />
         </div>
-
-        <div>
+ <div>
           <label>Email:</label>
           <input
             type="email"
@@ -146,6 +191,15 @@ doc.text(summaryLines, 20, 60);
             placeholder="Enter your email"
           />
         </div>
+        <div>
+  <label>Phone Number:</label>
+  <input
+    type="tel"
+    value={phone}
+    onChange={(e) => setPhone(e.target.value)}
+    placeholder="Enter phone number"
+  />
+</div>
 
         <div>
           <label>Skills:</label>
@@ -215,13 +269,19 @@ doc.text(summaryLines, 20, 60);
   >
     Download PDF
   </button>
-
+<button
+  type="button"
+  onClick={downloadDOCX}
+>
+  Download DOCX
+</button>
     <button
   type="button"
   onClick={() => setDarkMode(!darkMode)}
 >
   {darkMode ? "☀ Light Mode" : "🌙 Dark Mode"}
 </button>
+
 
 </div>
 
@@ -230,7 +290,7 @@ doc.text(summaryLines, 20, 60);
 
       <hr />
 
-      <div className="preview">
+      <div ref={resumeRef} className={`preview ${template}`}>
         <h3>Resume Preview</h3>
 
 {photo && (
@@ -247,17 +307,15 @@ doc.text(summaryLines, 20, 60);
     }}
   />
 )}
+<h2>{name}</h2>
+<p>{email}</p>
+<p>{phone}</p>
 
-
+<p>
+  <strong>Professional Summary</strong>
+</p>
 <p>{summary}</p>
-        <p>
-          <strong>Name:</strong> {name}
-        </p>
-
-        <p>
-          <strong>Email:</strong> {email}
-        </p>
-
+       <label>Skills:</label>
         <ul>
   {skills
     .split(",")
@@ -270,7 +328,7 @@ doc.text(summaryLines, 20, 60);
           <div
             className="skill-progress"
             style={{
-              width: `${80 - index * 10}%`,
+             width: `${Math.max(30, 80 - index * 10)}%`,
             }}
           ></div>
         </div>
@@ -285,17 +343,10 @@ doc.text(summaryLines, 20, 60);
         <p>
           <strong>Experience:</strong> {experience}
         </p>
-
-        <p>
-  <strong>Professional Summary:</strong>
-</p>
-<div className={`preview ${template}`}>
 </div>
-<div className={darkMode ? "container dark" : "container"}></div>
-
-      </div>
-    </div>
-  );
+</div>
+    
+   );
 }
 
 export default ResumeForm;
